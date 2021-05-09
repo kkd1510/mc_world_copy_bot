@@ -1,5 +1,4 @@
 import os
-import threading
 
 import discord
 
@@ -20,24 +19,20 @@ CP_RUN = get_cmd('cp_run')
 CP_LIST = get_cmd('cp_list')
 
 client = discord.Client()
-backup_runner = Runner()
-runner_thread = threading.Thread(target=backup_runner.make_single_copy)
-threads_list = [runner_thread]
+copies_runner = Runner()
 
-
-async def run_cmd(is_any_thread_alive, message):
-    if is_any_thread_alive:
-        await message.channel.send("Copy already being made!")
-
+async def run_cmd(message):
     if message.content == CP_RUN:
-        runner_thread.start()
         await message.channel.send("Starting copy")
+        copies_runner.make_single_copy()
+        await message.channel.send("Copy is now complete")
+
 
     if message.content == CP_LIST:
         copies = list_copies(COPIES_DIR)
         await message.channel.send(f"There are {len(copies)} copies currently")
-        await message.channel.send(f"Copies available:")
-        for world_copy in copies:
+        await message.channel.send(f"Three most recent copies available:")
+        for world_copy in copies[-3:]:
             await message.channel.send(f"{os.path.basename(world_copy)}")
 
 
@@ -54,17 +49,9 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    global stopped_previously_flag
-    is_any_thread_alive = False
-
-    for backup_t in threads_list:
-        if backup_t.is_alive():
-            is_any_thread_alive = True
-
     if message.author == client.user:
         return
 
-    await run_cmd(is_any_thread_alive, message)
-
+    await run_cmd(message)
 
 client.run(DISCORD_TOKEN)
